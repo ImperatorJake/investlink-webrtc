@@ -30,7 +30,7 @@ checksums.sh    regenerate .sha1/.md5 sidecars after changing any artifact
 
 ```gradle
 repositories {
-    maven { url 'https://raw.githubusercontent.com/InvestlinkSocial/investlink-webrtc/main/maven' }
+    maven { url 'https://raw.githubusercontent.com/ImperatorJake/investlink-webrtc/main/maven' }
 }
 
 dependencies {

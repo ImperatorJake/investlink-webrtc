@@ -23,7 +23,7 @@ Pod::Spec.new do |s|
     (m144.7559.05) with InvestLink's ExternalAudioSource delta applied. Replaces
     the WebRTC-SDK pod that @livekit/react-native-webrtc depends on.
   DESC
-  s.homepage     = 'https://github.com/InvestlinkSocial/investlink-webrtc'
+  s.homepage     = 'https://github.com/ImperatorJake/investlink-webrtc'
   s.license      = { :type => 'BSD-3-Clause' }
   s.author       = 'InvestLink'
 
@@ -34,7 +34,7 @@ Pod::Spec.new do |s|
 
   # TODO: fill in once the release exists. The tag should match s.version.
   s.source = {
-    :http => 'https://github.com/InvestlinkSocial/investlink-webrtc/releases/download/' \
+    :http => 'https://github.com/ImperatorJake/investlink-webrtc/releases/download/' \
              "ios-#{s.version}/WebRTC.xcframework.zip"
   }
 
