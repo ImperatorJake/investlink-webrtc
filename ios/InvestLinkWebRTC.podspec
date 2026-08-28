@@ -3,6 +3,10 @@
 # Drop-in replacement for the `WebRTC-SDK` pod, adding RTCExternalAudioSource so
 # screen-share audio can be published as its own track. See PROVENANCE.md.
 #
+# 🔴 .10, NOT .05 like the Android AAR. That is required, not drift: this
+# package's own iOS code calls RTCAudioDeviceModule selectors that only exist
+# from .10. See the README section on it before "fixing" the disagreement.
+#
 # Built 2026-08-27 on macOS (Xcode 26.6) and verified with
 # `verify-artifact.sh ios` — both slices carry the class and the header is
 # exported from the framework umbrella. See PROVENANCE.md for checksums.
@@ -26,11 +30,11 @@
 
 Pod::Spec.new do |s|
   s.name         = 'InvestLinkWebRTC'
-  s.version      = '144.7559.05-il1'
+  s.version      = '144.7559.10-il1'
   s.summary      = 'WebRTC with ExternalAudioSource, for screen-share audio on its own track.'
   s.description  = <<-DESC
-    Built from webrtc-sdk/webrtc @ 6c1aa903241e69eb2eca64caad16779351bb1ab2
-    (m144.7559.05) with InvestLink's ExternalAudioSource delta applied. Replaces
+    Built from webrtc-sdk/webrtc @ f47af7bc965851090bef9fce9a4284f468d20a44
+    (m144.7559.10) with InvestLink's ExternalAudioSource delta applied. Replaces
     the WebRTC-SDK pod that @livekit/react-native-webrtc depends on.
   DESC
   s.homepage     = 'https://github.com/ImperatorJake/investlink-webrtc'
@@ -57,7 +61,7 @@ Pod::Spec.new do |s|
   s.source = {
     :http => 'https://raw.githubusercontent.com/ImperatorJake/investlink-webrtc/' \
              "main/ios/#{s.version}/WebRTC.xcframework.zip",
-    :sha256 => '5f0fc16dbbb823504fe8473e852ab3796aa5bec2f20c53a5ac77ebbcf82a30e7'
+    :sha256 => 'f444b4c5fc32f48f2f4c5d0fa700141c62d05003dfbde3768ef196cfe04a6bba'
   }
 
   s.vendored_frameworks = 'WebRTC.xcframework'

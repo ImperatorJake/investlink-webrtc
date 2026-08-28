@@ -60,7 +60,7 @@ patch 11 of `scripts/patch-webrtc-native.js` in the mobile repo:
    ```
 
 2. `livekit-react-native-webrtc.podspec`'s `s.dependency 'WebRTC-SDK', '=144.7559.10'`
-   is swapped for `'InvestLinkWebRTC', '=144.7559.05-il1'`.
+   is swapped for `'InvestLinkWebRTC', '=144.7559.10-il1'`.
 
 The gradle side needs only the equivalent of (2) because its `maven { url }`
 block does (1)'s job inline.
@@ -82,15 +82,30 @@ EAS CI needs, and it is why the repo tolerates binaries in its history at all.
 - Change the version part only when the **upstream commit** changes.
 - Bump `il<n>` for a rebuild of the same upstream commit (a fix in our delta).
 
-Both platforms are built from the SAME upstream commit. They did not used to
-be: the stock pod pinned `144.7559.10` while gradle pinned `144.7559.05`, two
-different upstream commits. Both are now `6c1aa903` (`144.7559.05`).
+## 🔴 The platforms build from DIFFERENT upstream commits, on purpose
 
-Choosing `.05` over `.10` for iOS was checked, not assumed — `.10` only ADDS to
-the ObjC API (`RTCAudioProcessingState`, some `RTCAudioTrack` enums, one
-`RTCPeerConnectionFactory` property) and neither `@livekit/react-native-webrtc`
-nor `@livekit/react-native` references any of it, so iOS loses nothing by
-matching Android.
+Android `144.7559.05` (`6c1aa903`), iOS `144.7559.10` (`f47af7bc`).
+
+This looks like drift and is not. `@livekit/react-native-webrtc` pins
+`io.github.webrtc-sdk:android:144.7559.05` in gradle and `WebRTC-SDK
+=144.7559.10` in its podspec because **its iOS code calls ObjC APIs that only
+exist from `.10`** — `WebRTCModule+RTCAudioDeviceModule.m` uses
+`setPlatformVoiceProcessingAllowed:`, `platformAudioProcessingState` and
+`isVoiceProcessingEnabledRequested`, none of which are in `.05`'s
+`RTCAudioDeviceModule.h`. Build iOS at `.05` and the POD fails to compile:
+
+```
+no visible @interface for 'RTCAudioDeviceModule' declares the selector
+'setPlatformVoiceProcessingAllowed:'
+```
+
+An earlier version of this file claimed the opposite — that `.10` was purely
+additive and unused, so both platforms could share `.05`. That was based on
+grepping for a handful of expected symbol names rather than deriving them from
+the header diff, and it was wrong. iOS was built at `.05`, published, and only
+failed at the first real `xcodebuild`. **Do not "fix" this disagreement.** If
+you upgrade, take each platform to the version ITS side of the package requires
+and let a compile prove it, because nothing earlier in the chain will.
 
 ## Adding an Android artifact
 

@@ -73,24 +73,29 @@ and use it for both platforms.
 
 ---
 
-# iOS — `WebRTC.xcframework.zip`
+# iOS — `WebRTC.xcframework.zip` (144.7559.10-il1)
 
 ## What it is
 
 | | |
 |---|---|
-| Upstream | `webrtc-sdk/webrtc` @ `6c1aa903241e69eb2eca64caad16779351bb1ab2` |
-| Build harness | `webrtc-sdk/webrtc-build` tag `m144.7559.05` |
+| Upstream | `webrtc-sdk/webrtc` @ `f47af7bc965851090bef9fce9a4284f468d20a44` |
+| Build harness | `webrtc-sdk/webrtc-build` tag `m144.7559.10` |
 | Our delta | mobile repo commit `eeb0086`, `native/webrtc-external-audio/` |
 | Delta unchanged through | `d9e8c36` — `webrtc/` and `apply-delta.js` are byte-identical at `eeb0086`, `1b65294` and `d9e8c36`, so this artifact is current at HEAD |
 | Built | 2026-08-27, macOS 15 (Darwin 25.6.0), Xcode 26.6 (17F113), 8 cores |
-| Size | 18,190,464 bytes (zip) |
-| Published at | `ios/144.7559.05-il1/WebRTC.xcframework.zip`, a plain git blob served over raw.githubusercontent — same mechanism as the AAR |
-| SHA-256 | `5f0fc16dbbb823504fe8473e852ab3796aa5bec2f20c53a5ac77ebbcf82a30e7` |
+| Size | 18,258,882 bytes (zip) |
+| Published at | `ios/144.7559.10-il1/WebRTC.xcframework.zip`, a plain git blob served over raw.githubusercontent — same mechanism as the AAR |
+| SHA-256 | `f444b4c5fc32f48f2f4c5d0fa700141c62d05003dfbde3768ef196cfe04a6bba` |
 
-Same upstream commit as the Android AAR, which is the point — the two platforms
-no longer disagree. The stock pod pinned `144.7559.10` while Android pinned
-`.05`; both are now `6c1aa903` (`.05`).
+🔴 **A DIFFERENT upstream commit from the Android AAR, and that is correct.**
+`@livekit/react-native-webrtc`'s iOS code calls ObjC APIs that only exist from
+`.10` (`setPlatformVoiceProcessingAllowed:`, `platformAudioProcessingState`,
+`isVoiceProcessingEnabledRequested` in `WebRTCModule+RTCAudioDeviceModule.m`),
+which is why its podspec pinned `=144.7559.10` while its gradle pinned `.05`.
+The disagreement is a real per-platform requirement, not drift. An earlier
+attempt to unify both on `.05` built and published fine and then failed at the
+first `xcodebuild` — see the README section on this.
 
 ## Slices
 
