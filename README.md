@@ -20,8 +20,8 @@ runbook has the full evidence.
 
 ```
 maven/          static maven repo — the Android AAR, consumed over plain HTTPS
-ios/            podspec for the XCFramework (published as a Release asset)
-checksums.sh    regenerate .sha1/.md5 sidecars after changing any artifact
+ios/            the XCFramework zip + its podspec, consumed over plain HTTPS
+checksums.sh    regenerate .sha1/.md5 sidecars after changing any maven artifact
 ```
 
 ## Consuming it
@@ -45,19 +45,35 @@ replacing `api 'io.github.webrtc-sdk:android:144.7559.05'` in
 
 ### iOS
 
-Not built yet. The podspec in `ios/` is a template pointing at a Release asset
-that does not exist; it needs a Mac.
+Two halves, and BOTH are required — see `plugins/withInvestLinkWebRTC.js` and
+patch 11 of `scripts/patch-webrtc-native.js` in the mobile repo:
+
+1. The Podfile declares the pod with an explicit `:podspec` URL. CocoaPods
+   resolves dependencies only from Podfile-declared sources, and this pod is not
+   in the trunk spec repo, so without this a dependency on it fails with
+   `Unable to find a specification for InvestLinkWebRTC` — which reads like a
+   typo rather than a missing source.
+
+   ```ruby
+   pod 'InvestLinkWebRTC', :podspec =>
+     'https://raw.githubusercontent.com/ImperatorJake/investlink-webrtc/main/ios/InvestLinkWebRTC.podspec'
+   ```
+
+2. `livekit-react-native-webrtc.podspec`'s `s.dependency 'WebRTC-SDK', '=144.7559.10'`
+   is swapped for `'InvestLinkWebRTC', '=144.7559.05-il1'`.
+
+The gradle side needs only the equivalent of (2) because its `maven { url }`
+block does (1)'s job inline.
 
 ## 🔴 Do not enable Git LFS on this repo
 
-Gradle fetches the AAR through `raw.githubusercontent.com`. If the AAR is stored
-in LFS, that URL returns the **pointer text file**, not the binary — and gradle
-fails with a confusing "not a valid zip" or checksum error rather than anything
-that points at LFS. The artifact must be a plain git blob.
+Both artifacts are fetched through `raw.githubusercontent.com`. If either is
+stored in LFS, that URL returns the **pointer text file**, not the binary — and
+the failure surfaces as a confusing "not a valid zip" or checksum error that
+mentions nothing about LFS. Both must be plain git blobs.
 
-That is why the repo tolerates a 48MB binary in history and why the iOS
-XCFramework goes to Release assets instead: assets are fetched on demand and
-never enter git history.
+That is the price of serving binaries over unauthenticated HTTPS, which is what
+EAS CI needs, and it is why the repo tolerates binaries in its history at all.
 
 ## Versioning
 
@@ -66,9 +82,15 @@ never enter git history.
 - Change the version part only when the **upstream commit** changes.
 - Bump `il<n>` for a rebuild of the same upstream commit (a fix in our delta).
 
-Both platforms should be built from the SAME upstream commit. Note that today
-the pod and the gradle dependency disagree — iOS pins `144.7559.10` and Android
-`144.7559.05` — and building our own is the chance to close that.
+Both platforms are built from the SAME upstream commit. They did not used to
+be: the stock pod pinned `144.7559.10` while gradle pinned `144.7559.05`, two
+different upstream commits. Both are now `6c1aa903` (`144.7559.05`).
+
+Choosing `.05` over `.10` for iOS was checked, not assumed — `.10` only ADDS to
+the ObjC API (`RTCAudioProcessingState`, some `RTCAudioTrack` enums, one
+`RTCPeerConnectionFactory` property) and neither `@livekit/react-native-webrtc`
+nor `@livekit/react-native` references any of it, so iOS loses nothing by
+matching Android.
 
 ## Adding an Android artifact
 
@@ -81,18 +103,20 @@ the pod and the gradle dependency disagree — iOS pins `144.7559.10` and Androi
 5. Record upstream commit, harness tag, delta commit SHA and checksums in
    `PROVENANCE.md`. Without it the next upgrade is archaeology.
 
-## Adding the iOS artifact — not done yet
+## Adding an iOS artifact
 
 The XCFramework has to be built on a Mac. Start from
 `native/webrtc-external-audio/BUILD-RUNBOOK.md` and
 `notes/ios-screen-audio-handoff.md` in the mobile repo; this section is only
 about publishing what comes out.
 
-**It goes to a GitHub Release asset, NOT into git.** At roughly 300MB an
-XCFramework in history would be paid for by every clone of this repo forever,
-whereas release assets are fetched on demand. The Android AAR is committed only
-because gradle needs a maven layout over plain HTTPS, and 48MB is a tolerable
-price for that.
+**It is committed, exactly like the AAR.** An earlier draft sent it to a GitHub
+Release asset on the grounds that an XCFramework is ~300MB — but that assumed
+the stock pod's eleven slices (macOS, Mac Catalyst, tvOS, visionOS). An
+iOS-only build is 17MB, smaller than the AAR already in this repo, so the
+objection did not survive contact with a real artifact and both platforms now
+use one hosting mechanism. If you ever DO publish all eleven slices, revisit
+this — at that size a Release asset is the right call again.
 
 1. Build it, then verify — the iOS half of the verifier checks that the header
    is exported from the framework and that each slice's binary really contains
@@ -103,23 +127,28 @@ price for that.
    ```
 
 2. Zip it as `WebRTC.xcframework.zip`.
-3. Create a release tagged **`ios-<version>`** — e.g. `ios-144.7559.05-il1` —
-   and attach the zip. The tag shape matters: `ios/InvestLinkWebRTC.podspec`
-   builds its download URL from `ios-#{s.version}`.
-4. In `ios/InvestLinkWebRTC.podspec`, remove the `TODO` comment and confirm
-   `s.version` matches the tag. Check the deployment targets still match the
-   stock `WebRTC-SDK` pod — raising them silently raises the whole app's floor.
+3. Commit it to a **version-scoped** path: `ios/<version>/WebRTC.xcframework.zip`.
+   The version lives in the PATH, which is what lets the podspec point at `main`
+   without a rebuild ever changing what an existing `s.version` resolves to —
+   the same property the maven layout relies on. Never overwrite a published
+   directory; publish a new one and bump `-il<n>`.
+4. In `ios/InvestLinkWebRTC.podspec`, set `s.version` and update `:sha256` to
+   the new zip's. Check the deployment targets still match the stock
+   `WebRTC-SDK` pod — raising them silently raises the whole app's floor, and
+   declaring a platform you have no slice for fails at LINK time, not at
+   `pod install`.
 5. Add an iOS section to `PROVENANCE.md`: upstream commit, harness tag, delta
    commit SHA, Xcode version, and the zip's SHA-256.
 6. Sanity-check the published URL actually serves the binary before wiring the
    pod up:
 
    ```bash
-   curl -sSIL <release-asset-url> | grep -iE "^(HTTP|content-length|content-type)"
+   curl -sSIL <raw-githubusercontent-url> | grep -iE "^(HTTP|content-length|content-type)"
    ```
 
    That is the same check that proved the Android path — fetching the exact URL
-   the build tool will use, rather than trusting that it works.
+   the build tool will use, rather than trusting that it works. A few hundred
+   bytes of `text/plain` back means LFS ate it.
 
 ### Then repoint the pod
 
@@ -134,5 +163,10 @@ Do it as an anchored patch in `scripts/patch-webrtc-native.js` (the mobile
 repo), the same way the Android gradle coordinate is swapped — a hand edit to
 `node_modules` is undone by the next `yarn install`.
 
-⚠️ Note that line says **.10** while Android pins **.05**. They should be built
-from the SAME upstream commit; use `144.7559.05` / `6c1aa903…` for both.
+🔴 **That swap alone does not install anything.** Unlike gradle, where a
+`maven { url }` block sits in the same file as the coordinate, CocoaPods
+resolves only from Podfile-declared sources — and this pod is not in the trunk
+spec repo. The Podfile declaration in `plugins/withInvestLinkWebRTC.js` is the
+other half; without it the patched dependency fails with `Unable to find a
+specification for InvestLinkWebRTC`, which looks like a typo rather than a
+missing source. Ship the two together.
