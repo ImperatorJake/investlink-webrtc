@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <groupId>com.investlink</groupId>
+  <artifactId>webrtc-android</artifactId>
+  <version>144.7559.05-il1</version>
+  <packaging>aar</packaging>
+
+  <name>InvestLink WebRTC (Android)</name>
+  <description>
+    Drop-in replacement for io.github.webrtc-sdk:android, adding
+    org.webrtc.ExternalAudioSource so screen-share audio can be published as its
+    own track rather than mixed into the microphone. Built from
+    webrtc-sdk/webrtc @ 6c1aa903241e69eb2eca64caad16779351bb1ab2 (m144.7559.05)
+    with the delta in the mobile repo at native/webrtc-external-audio/.
+  </description>
+
+  <licenses>
+    <license>
+      <name>BSD 3-Clause</name>
+      <url>https://webrtc.googlesource.com/src/+/main/LICENSE</url>
+      <distribution>repo</distribution>
+    </license>
+  </licenses>
+
+  <!--
+    No dependencies, matching the artifact this replaces: the WebRTC AAR is
+    self-contained (native .so plus org.webrtc classes). Declaring any here
+    would silently add them to every consumer of the pod.
+  -->
+</project>
