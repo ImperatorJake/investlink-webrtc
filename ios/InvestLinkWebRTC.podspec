@@ -7,9 +7,13 @@
 # package's own iOS code calls RTCAudioDeviceModule selectors that only exist
 # from .10. See the README section on it before "fixing" the disagreement.
 #
-# Built 2026-08-27 on macOS (Xcode 26.6) and verified with
+# Built 2026-08-30 on macOS (Xcode 26.6) and verified with
 # `verify-artifact.sh ios` — both slices carry the class and the header is
 # exported from the framework umbrella. See PROVENANCE.md for checksums.
+#
+# -il2 additionally carries the ADM fan-out opt-out: a stream fed by
+# ExternalAudioSource no longer also joins the microphone fan-out, which was
+# crashing on RTC_CHECK_RUNS_SERIALIZED in AudioSendStream::SendAudioData.
 #
 # iOS SLICES ONLY (device + simulator). The stock WebRTC-SDK pod vends eleven
 # slices including macOS, Mac Catalyst, tvOS and visionOS; this app is iOS-only
@@ -30,7 +34,7 @@
 
 Pod::Spec.new do |s|
   s.name         = 'InvestLinkWebRTC'
-  s.version      = '144.7559.10-il1'
+  s.version      = '144.7559.10-il2'
   s.summary      = 'WebRTC with ExternalAudioSource, for screen-share audio on its own track.'
   s.description  = <<-DESC
     Built from webrtc-sdk/webrtc @ f47af7bc965851090bef9fce9a4284f468d20a44
@@ -61,7 +65,7 @@ Pod::Spec.new do |s|
   s.source = {
     :http => 'https://raw.githubusercontent.com/ImperatorJake/investlink-webrtc/' \
              "main/ios/#{s.version}/WebRTC.xcframework.zip",
-    :sha256 => 'f444b4c5fc32f48f2f4c5d0fa700141c62d05003dfbde3768ef196cfe04a6bba'
+    :sha256 => '5e8a3401c6722451ead3e169cf461813edc302774e9f2d6c36b7ff58fa2c453d'
   }
 
   s.vendored_frameworks = 'WebRTC.xcframework'

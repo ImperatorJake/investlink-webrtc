@@ -170,3 +170,130 @@ The verifier's iOS path had never executed before this build, so it was proven
 in both directions here: stripped of the header and given a junk binary it fails
 both checks and exits 1, and with one slice of the real XCFramework gutted it
 names that slice specifically.
+
+
+---
+
+# iOS — `WebRTC.xcframework.zip` (144.7559.10-il2)
+
+## What it is
+
+| | |
+|---|---|
+| Upstream | `webrtc-sdk/webrtc` @ `f47af7bc965851090bef9fce9a4284f468d20a44` (unchanged from `-il1`) |
+| Build harness | `webrtc-sdk/webrtc-build` tag `m144.7559.10` |
+| Our delta | mobile repo commit `92698760a2aa1558deeae96e837891f351f1268d`, branch `claude/screen-share-audio-followups` |
+| Built | 2026-08-30, macOS 26.6.2 (Darwin 25.6.0), Apple M2, 8 cores, Xcode 26.6 (17F113) |
+| Size | 18,258,187 bytes (zip) |
+| Published at | `ios/144.7559.10-il2/WebRTC.xcframework.zip` |
+| SHA-256 | `5e8a3401c6722451ead3e169cf461813edc302774e9f2d6c36b7ff58fa2c453d` |
+
+Same upstream commit as `-il1`; only our delta changed. The `-il2` suffix is our
+build number against that upstream version, which is exactly what it is for.
+
+## Why `-il2` exists
+
+Two on-device crashes (mobile build 66, 2026-08-29) died on
+`RTC_CHECK_RUNS_SERIALIZED` in `AudioSendStream::SendAudioData`
+(`audio/audio_send_stream.cc:393`). The send stream fed by our
+`ExternalAudioSource` was **also** registered for the ADM microphone fan-out, so
+the mic capture thread and our push thread raced into a single stream that
+asserts it is only ever touched by one.
+
+The fix adds a per-source `external_pcm_source` flag on `AudioOptions`, which
+`ExternalAudioSource` sets on itself. `WebRtcVoiceEngine` forwards it per stream
+to `AudioSendStream::SetExternallyFed`, and an externally-fed stream then skips
+`AddSendingStream`/`RemoveSendingStream` in `Start()`/`Stop()`. One producer per
+stream, which is what the check was always asking for.
+
+That is 11 new anchored edits in `apply-delta.js` (the "ADM fan-out opt-out"
+block) on top of the original 5, plus one line in
+`webrtc/pc/external_audio_source.cc`. All 16 applied cleanly to a fresh
+`f47af7bc` checkout — none reported as already applied.
+
+🔴 **Android stays at `144.7559.05-il1` and still carries this same latent
+race.** The AAR build is Linux-only (BUILD-RUNBOOK.md §3) and was deferred; this
+was an iOS-only rebuild. Rebuild the AAR at `-il2` before any Android
+screen-share-audio testing, and bump `ANDROID_VERSION` in the mobile repo's
+`scripts/webrtc-version.js` when you do.
+
+## Slices
+
+Identical to `-il1`: `ios-arm64` (device) and `ios-arm64_x86_64-simulator`.
+iOS only — the other eight slices `xcframework.sh` builds are still skipped, so
+this artifact is still not a drop-in for a non-iOS consumer and the podspec
+still declares no `osx.deployment_target`.
+
+## Build flags
+
+`apple/xcframework.sh`'s `COMMON_ARGS` verbatim, per slice — notably
+`is_debug = false`, `enable_stripping = true`, `rtc_enable_symbol_export = true`,
+`rtc_use_h264 = false` and `treat_warnings_as_errors = true`. The new C++ in
+`audio/`, `media/engine/` and `api/` compiled warning-clean under that last one.
+
+## How it was built
+
+```bash
+# 1. fetch and sync ONLY — `run.py build apple` compiles nothing (run.py:1199 is `pass`)
+python3 run.py build apple --commit f47af7bc965851090bef9fce9a4284f468d20a44 \
+    --webrtc-fetch --webrtc-nobuild \
+    --webrtc-source-dir $WORK/webrtc --source-dir $WORK/_source --build-dir $WORK/_build
+
+# 2. apply the delta AFTER the last fetch, never before
+node native/webrtc-external-audio/apply-delta.js $WORK/webrtc/src
+
+# 3. gn gen + ninja ios_framework_bundle for the three iOS slices, then
+#    lipo + xcodebuild -create-xcframework + zip — xcframework.sh restricted
+#    to iOS, everything else verbatim
+
+# 4. verify BEFORE publishing
+./native/webrtc-external-audio/verify-artifact.sh ios $WORK/out-ios/WebRTC.xcframework.zip
+```
+
+### A new trap, paid for here
+
+**A freshly cloned `depot_tools` is not bootstrapped, and its `gn`/`ninja` are
+only shims.** The first slice build died immediately on
+
+```
+python3_bin_reldir.txt not found. need to initialize depot_tools by
+running gclient, update_depot_tools or ensure_bootstrap.
+```
+
+`run.py`'s fetch path drives `gclient` directly and never bootstraps the shims,
+so the fetch succeeds and leaves `gn` unusable — which only matters because the
+iOS path drives the slice build by hand. `depot_tools/ensure_bootstrap` fixes
+it. This joins the existing "driving ninja by hand needs depot_tools on PATH and
+cwd at the source root" note: it is a THIRD prerequisite for the same step.
+
+Worth repeating that the failing run still exited 0 through a shell wrapper
+whose last command was `tail`. The build log said what happened; the exit code
+did not.
+
+## Verified, not assumed
+
+```
+iOS artifact: .../out-ios/WebRTC.xcframework.zip
+  ✓ RTCExternalAudioSource.h is in the framework headers
+  ✓ ios-arm64_x86_64-simulator contains the RTCExternalAudioSource class
+  ✓ ios-arm64 contains the RTCExternalAudioSource class
+
+OK — the artifact carries ExternalAudioSource.
+```
+
+`verify-artifact.sh` proves the ORIGINAL delta reached the binary, but it would
+pass just as happily on an `-il1` rebuild — it knows nothing about the fan-out
+fix. So the fix itself was checked directly: `external_pcm_source` reaches the
+binary as a string via `AudioOptions::ToString`, and it is present in both
+slices.
+
+```
+$ strings WebRTC.xcframework/ios-arm64/WebRTC.framework/WebRTC | grep -c external_pcm_source
+1
+$ strings WebRTC.xcframework/ios-arm64_x86_64-simulator/WebRTC.framework/WebRTC | grep -c external_pcm_source
+2
+```
+
+Two in the simulator slice and one in the device slice is the expected shape,
+not a discrepancy: the simulator binary is a fat `arm64 + x86_64` file and each
+architecture contributes its own copy of the string.
