@@ -60,7 +60,12 @@ patch 11 of `scripts/patch-webrtc-native.js` in the mobile repo:
    ```
 
 2. `livekit-react-native-webrtc.podspec`'s `s.dependency 'WebRTC-SDK', '=144.7559.10'`
-   is swapped for `'InvestLinkWebRTC', '=144.7559.10-il1'`.
+   is swapped for `'InvestLinkWebRTC', '=144.7559.10-il2'`.
+
+   Both this and the Android coordinate above are generated from
+   `scripts/webrtc-version.js` in the mobile repo — that file is the single
+   source of truth for both, so bump it there rather than editing either
+   consumer by hand.
 
 The gradle side needs only the equivalent of (2) because its `maven { url }`
 block does (1)'s job inline.
