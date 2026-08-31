@@ -297,3 +297,21 @@ $ strings WebRTC.xcframework/ios-arm64_x86_64-simulator/WebRTC.framework/WebRTC 
 Two in the simulator slice and one in the device slice is the expected shape,
 not a discrepancy: the simulator binary is a fat `arm64 + x86_64` file and each
 architecture contributes its own copy of the string.
+
+## webrtc-android 144.7559.05-il2 (2026-08-30)
+
+Built on the WSL box (Linux; the AAR builds nowhere else) from
+webrtc-sdk/webrtc @ 6c1aa903241e69eb2eca64caad16779351bb1ab2 (m144.7559.05)
+with the mobile repo's delta at commit 31f28cf (branch
+claude/screen-share-audio-followups) — the same "ADM fan-out opt-out" delta as
+the iOS -il2: a stream fed by ExternalAudioSource opts out of the microphone
+fan-out (external_pcm_source), fixing the fatal two-producer race in
+AudioSendStream::SendAudioData seen twice on iOS build 66 (2026-08-29). Android
+had the identical latent race, unexercised.
+
+- fetch.sh → apply-delta.js (8 copies + all EDITS incl. the 11 fan-out edits,
+  every one applied fresh) → build.sh (4 ABIs) → verify-artifact.sh android:
+  ExternalAudioSource in classes.jar, all 5 JNI entry points in all 4 ABIs.
+- Fix-presence check: `strings jni/arm64-v8a/libjingle_peerconnection_so.so |
+  grep -c external_pcm_source` → 1.
+- SHA-256 (aar): 8bae0b42406a592638b5c2ee14575bd639e2c262a8900a1eabdab2010d66bca0
