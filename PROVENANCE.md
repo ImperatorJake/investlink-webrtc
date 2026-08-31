@@ -211,11 +211,16 @@ block) on top of the original 5, plus one line in
 `webrtc/pc/external_audio_source.cc`. All 16 applied cleanly to a fresh
 `f47af7bc` checkout — none reported as already applied.
 
-🔴 **Android stays at `144.7559.05-il1` and still carries this same latent
-race.** The AAR build is Linux-only (BUILD-RUNBOOK.md §3) and was deferred; this
-was an iOS-only rebuild. Rebuild the AAR at `-il2` before any Android
-screen-share-audio testing, and bump `ANDROID_VERSION` in the mobile repo's
-`scripts/webrtc-version.js` when you do.
+✅ **Resolved the same day.** When this entry was written Android was still at
+`144.7559.05-il1`, carrying the identical latent race, because the AAR builds
+only on Linux and that rebuild was deferred. It happened hours later — see the
+`webrtc-android 144.7559.05-il2` entry at the end of this file. Both platforms
+now carry the fan-out opt-out, and `scripts/webrtc-version.js` pins `-il2` for
+both.
+
+Worth keeping as a record of the shape rather than editing away: a fix that
+lands on one platform first leaves the other quietly broken, and the only thing
+standing between that and a shipped crash is writing down which half is done.
 
 ## Slices
 

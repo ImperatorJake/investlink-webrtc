@@ -34,7 +34,7 @@ repositories {
 }
 
 dependencies {
-    api 'com.investlink:webrtc-android:144.7559.05-il1'
+    api 'com.investlink:webrtc-android:144.7559.05-il2'
 }
 ```
 
