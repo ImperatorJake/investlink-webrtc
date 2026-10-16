@@ -303,6 +303,88 @@ Two in the simulator slice and one in the device slice is the expected shape,
 not a discrepancy: the simulator binary is a fat `arm64 + x86_64` file and each
 architecture contributes its own copy of the string.
 
+# iOS — `WebRTC.xcframework.zip` (144.7559.10-il3)
+
+## What it is
+
+| | |
+|---|---|
+| Upstream | `webrtc-sdk/webrtc` @ `f47af7bc965851090bef9fce9a4284f468d20a44` (unchanged from `-il1`/`-il2`) |
+| Build harness | `webrtc-sdk/webrtc-build` tag `m144.7559.10` |
+| Our delta | mobile repo commit `c794f670`, branch `claude/webrtc-il3-1` (`apply-delta.js`, `webrtc/`) |
+| Toolchain fixes | mobile repo commit `fd44fc05` (`ios-toolchain/apply.sh`, `xcframework-ios-only.sh`) |
+| Built | 2026-10-16, Mac mini (Apple M2, 8 cores), Darwin 27.0.0, Xcode 27.0 (27A266a), iOS SDK 27.0 |
+| Size | 18,674,274 bytes (zip) |
+| Published at | `ios/144.7559.10-il3/WebRTC.xcframework.zip`, plain git blob |
+| SHA-256 | `595ef05bb6588e5f4900dac8d311e5ac05f97d8e676a2d4a3ea02b699a730cf0` |
+
+## Why `-il3` exists
+
+iOS 1.2.2 build 91 (`-il2`) aborted 2026-10-16 on the build-66 check in
+`AudioSendStream::SendAudioData`, about 66 s into a LiveKit screen share with
+audio. `-il2` kept the externally fed stream out of the ADM mic fan-out only in
+`Start`, `Stop` and the setter. Upstream has a fourth route:
+`AudioSendStream::StoreEncoderProperties` (`audio/audio_send_stream.cc:582`)
+re-registers a sending stream on every encoder rebuild, and LiveKit's
+stereo-Opus answer rebuilds the encoder on a live stream.
+
+`-il3` enforces the opt-out where the fan-out is built:
+`AudioState::AddSendingStream` refuses any stream whose `IsExternallyFed()` is
+true, `AudioTransportImpl::SendProcessedData` skips one, the flag is set before
+the source attaches and follows the source rather than the mute state, and one
+warning is logged per refusal or flip. Full trace: `il3/RCA.md` in the mobile
+repo.
+
+All 8 copies and 21 edits applied fresh to a clean `f47af7bc` checkout, none
+reported as already applied.
+
+⚠️ **Android is still `144.7559.05-il2`** and still exposed to the reconfigure
+path until it is rebuilt from the same delta on the Linux box.
+
+## Built with a newer Xcode than the pin
+
+`-il1`/`-il2` used Xcode 26.6. On Xcode 27 the pinned Chromium toolchain broke
+three ways, fixed by `ios-toolchain/apply.sh` (no WebRTC source changes):
+`use_clang_modules = false` (the module maps only know SDK 26.00); a libc++
+`<float.h>` fix for 27's `__need_infinity_nan` partial include; and Apple's
+`ld` instead of the pinned lld (`use_lld = false`, plus a host-toolchain
+patch), because 27's `.tbd` stubs list `arm64e.x1`. The shipped binaries are
+therefore linked by Apple's ld, the same linker every App Store app uses.
+Details are in BUILD-RUNBOOK.md §7.
+
+`LC_BUILD_VERSION`: minos 13.0, sdk 27.0 (device slice).
+
+## Slices
+
+Identical to `-il2`: `ios-arm64` (device, `arm64`) and
+`ios-arm64_x86_64-simulator` (`x86_64 arm64`). iOS only; no
+`osx.deployment_target` in the podspec.
+
+## Verified, not assumed
+
+```
+iOS artifact: .../out-ios/WebRTC.xcframework.zip
+  ✓ RTCExternalAudioSource.h is in the framework headers
+  ✓ ios-arm64_x86_64-simulator contains the RTCExternalAudioSource class
+  ✓ ios-arm64_x86_64-simulator carries the fan-out opt-out (3 strings)
+  ✓ ios-arm64 contains the RTCExternalAudioSource class
+  ✓ ios-arm64 carries the fan-out opt-out (3 strings)
+
+OK — the artifact carries ExternalAudioSource.
+```
+
+`verify-artifact.sh` now also asserts the `-il3` strings, and it rejects the
+published `-il2` zip. Per slice, via `strings -a`:
+
+| string | ios-arm64 | simulator (fat) |
+|---|---|---|
+| `external_pcm_source` | 1 | 2 |
+| `InvestLink ADM fan-out: refused` | 1 | 2 |
+| `InvestLink ADM fan-out: externally_fed=` | 1 | 2 |
+
+Host suite (`make test` in the mobile repo): the 9 fan-out cases pass under
+ASan, TSan and plain, and all 9 fail against the `-il2` delta.
+
 ## webrtc-android 144.7559.05-il2 (2026-08-30)
 
 Built on the WSL box (Linux; the AAR builds nowhere else) from

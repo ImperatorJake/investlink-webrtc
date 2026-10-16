@@ -15,6 +15,10 @@
 # ExternalAudioSource no longer also joins the microphone fan-out, which was
 # crashing on RTC_CHECK_RUNS_SERIALIZED in AudioSendStream::SendAudioData.
 #
+# -il3 (2026-10-16, Xcode 27) enforces that opt-out where the fan-out is built
+# (AudioState::AddSendingStream), after build 91 showed an encoder reconfigure
+# could re-register the stream under -il2.
+#
 # iOS SLICES ONLY (device + simulator). The stock WebRTC-SDK pod vends eleven
 # slices including macOS, Mac Catalyst, tvOS and visionOS; this app is iOS-only
 # and building the other eight costs ~12-18h for slices nothing loads. That is
@@ -34,7 +38,7 @@
 
 Pod::Spec.new do |s|
   s.name         = 'InvestLinkWebRTC'
-  s.version      = '144.7559.10-il2'
+  s.version      = '144.7559.10-il3'
   s.summary      = 'WebRTC with ExternalAudioSource, for screen-share audio on its own track.'
   s.description  = <<-DESC
     Built from webrtc-sdk/webrtc @ f47af7bc965851090bef9fce9a4284f468d20a44
@@ -65,7 +69,7 @@ Pod::Spec.new do |s|
   s.source = {
     :http => 'https://raw.githubusercontent.com/ImperatorJake/investlink-webrtc/' \
              "main/ios/#{s.version}/WebRTC.xcframework.zip",
-    :sha256 => '5e8a3401c6722451ead3e169cf461813edc302774e9f2d6c36b7ff58fa2c453d'
+    :sha256 => '595ef05bb6588e5f4900dac8d311e5ac05f97d8e676a2d4a3ea02b699a730cf0'
   }
 
   s.vendored_frameworks = 'WebRTC.xcframework'
