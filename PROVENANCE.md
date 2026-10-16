@@ -303,7 +303,77 @@ Two in the simulator slice and one in the device slice is the expected shape,
 not a discrepancy: the simulator binary is a fat `arm64 + x86_64` file and each
 architecture contributes its own copy of the string.
 
-# iOS — `WebRTC.xcframework.zip` (144.7559.10-il3)
+# iOS — `WebRTC.xcframework.zip` (144.7559.10-il4)
+
+## What it is
+
+| | |
+|---|---|
+| Upstream | `webrtc-sdk/webrtc` @ `f47af7bc965851090bef9fce9a4284f468d20a44` (unchanged) |
+| Build harness | `webrtc-sdk/webrtc-build` tag `m144.7559.10` |
+| Our delta | mobile repo commit `c794f670` (identical to `-il3`) |
+| Build scripts | mobile repo commit `3395d00b` (`xcframework-ios-only.sh`, `WEBRTC_XCODE`) |
+| Built | 2026-10-16, Mac mini (Apple M2), macOS 27 (Darwin 27.0.0), **Xcode 26.6 (17F113)** scoped via `DEVELOPER_DIR`; iOS SDK 26.5 (23F81a), macOS SDK 26.5 (25F70). Stock toolchain: lld, clang modules at default |
+| Size | 18,248,295 bytes (zip) |
+| Published at | `ios/144.7559.10-il4/WebRTC.xcframework.zip` + `ios/144.7559.10-il4/InvestLinkWebRTC.podspec` (versioned podspec) |
+| SHA-256 | `d8adfa5e4664bd25a4a9d14a12f5cba01ce4b3f9649a0d9e3d8fd9a4af60f0ed` |
+
+Same fix as `-il3` (the ADM fan-out opt-out enforced at
+`AudioState::AddSendingStream`; see the `-il3` entry below for why), built the
+way `-il2` was. It **supersedes `-il3`**, which was built with Xcode 27 and
+patched toolchain workarounds and must not be used.
+
+One packaging change from `-il2`: every slice is stripped with Apple's
+`strip -x -S` instead of the pinned `llvm-strip`, which left the arm64
+simulator slice's string table 4-byte aligned in `-il1`/`-il2`. Xcode 27's ld
+rejects that (`mis-aligned LINKEDIT string pool`); all slices are now 8-byte
+aligned and the build fails otherwise.
+
+## Compared with `-il2`, per slice and architecture
+
+| | ios-arm64 | sim x86_64 | sim arm64 |
+|---|---|---|---|
+| `otool -L` | identical | identical | identical |
+| minos / sdk | 13.0 / 26.5 | 13.0 / 26.5 | 14.0 / 26.5 |
+| load commands | same | same | same |
+| exported ObjC classes | 94, no diff | 94, no diff | 94, no diff |
+| exported symbols | 3034, no diff | 3078, no diff | 3034, no diff |
+| `__text` | +696 B | +688 B | +696 B |
+
+Framework Info.plist: `DTXcode 2660`, `DTXcodeBuild 17F113`, `DTSDKBuild
+23F81a`, as `-il2`.
+
+## Verified, not assumed
+
+```
+  ✓ RTCExternalAudioSource.h is in the framework headers
+  ✓ ios-arm64_x86_64-simulator contains the RTCExternalAudioSource class
+  ✓ ios-arm64_x86_64-simulator carries the fan-out opt-out (3 strings)
+  ✓ ios-arm64 contains the RTCExternalAudioSource class
+  ✓ ios-arm64 carries the fan-out opt-out (3 strings)
+OK — the artifact carries ExternalAudioSource.
+```
+
+`strings -a`: `external_pcm_source`, `InvestLink ADM fan-out: refused`,
+`InvestLink ADM fan-out: externally_fed=`: 1 each in ios-arm64, 2 each in the
+fat simulator slice.
+
+Consumer test before publishing: the app (Release, Xcode 27.0) linked it for
+device and simulator, the device app embeds it byte-for-byte, and the
+simulator build launched on an iOS 26.5 simulator and ran without a crash.
+
+## Versioned podspec
+
+From `-il4` on, each version carries its own podspec beside its zip, and the
+app points at `ios/<version>/InvestLinkWebRTC.podspec`. The shared
+`ios/InvestLinkWebRTC.podspec` is back on `-il2` for builds that still
+reference it (`claude/main` until it moves): one shared file could only ever
+satisfy one branch's exact pin.
+
+---
+
+# iOS — `WebRTC.xcframework.zip` (144.7559.10-il3) — ⚠️ SUPERSEDED by `-il4`, do not use
+
 
 ## What it is
 
