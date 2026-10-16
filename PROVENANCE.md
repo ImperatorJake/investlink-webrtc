@@ -472,3 +472,32 @@ had the identical latent race, unexercised.
 - Fix-presence check: `strings jni/arm64-v8a/libjingle_peerconnection_so.so |
   grep -c external_pcm_source` → 1.
 - SHA-256 (aar): 8bae0b42406a592638b5c2ee14575bd639e2c262a8900a1eabdab2010d66bca0
+
+## webrtc-android 144.7559.05-il4 (2026-10-16)
+
+Named `-il4` to match the iOS `144.7559.10-il4`: both carry the same delta.
+There is no Android `-il3`.
+
+Built on the WSL box (nzxtbld) from webrtc-sdk/webrtc @
+6c1aa903241e69eb2eca64caad16779351bb1ab2 (m144.7559.05, unchanged) with the
+mobile repo's delta at commit c794f670 (branch claude/webrtc-il3-1). That delta
+closes the second route into the microphone fan-out, which crashed iOS build 91
+(2026-10-16) on `RTC_CHECK_RUNS_SERIALIZED` in `AudioSendStream::SendAudioData`.
+`AudioSendStream::StoreEncoderProperties` re-ran `AudioState::AddSendingStream`
+on every encoder rebuild (LiveKit's stereo Opus reconfigure), which put the
+externally fed stream back into the fan-out. It adds
+`AudioSender::IsExternallyFed()`: `AddSendingStream` refuses externally fed
+streams, and `SendProcessedData` skips them. Android had the same latent path.
+
+- fetch.sh → apply-delta.js (8 copies, 21 edits, every one applied fresh) →
+  build.sh (4 ABIs) → verify-artifact.sh android: ExternalAudioSource in
+  classes.jar; all 5 JNI entry points and the fan-out opt-out (3 strings) in all
+  4 ABIs.
+- `strings` per ABI on libjingle_peerconnection_so.so: `external_pcm_source`,
+  `InvestLink ADM fan-out: refused` and `InvestLink ADM fan-out: externally_fed=`
+  appear once each.
+- `make test`: 0 failures under asan, tsan and plain (fanout: 0 of 9 cases failed).
+- Release APK built against it; its .so files are byte-identical to the AAR's.
+  It launched on an arm64 emulator on the Mac mini and ran with no crash.
+- Size 48,558,762 bytes. SHA-256 (aar):
+  f816296c4254bfd4367ca7e2c8ae9ecf46df2a015db7584d226c8b90ce70bbbd
